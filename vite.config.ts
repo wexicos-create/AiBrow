@@ -14,8 +14,8 @@ export default defineConfig(() => {
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
         manifest: {
           id: 'https://aistudioapk.com/',
-          name: 'AI Studio APK - Aether Neural Browser',
-          short_name: 'AIStudioAPK',
+          name: 'AiBrow Neural Browser',
+          short_name: 'aibrow',
           description: 'Navegador web IA neural con agente autónomo, puntero en vivo y entorno de pruebas en aistudioapk.com.',
           theme_color: '#0a0a0a',
           background_color: '#0a0a0a',
@@ -24,6 +24,14 @@ export default defineConfig(() => {
           start_url: '/',
           scope: '/',
           categories: ['utilities', 'developer', 'productivity'],
+          prefer_related_applications: false,
+          related_applications: [
+            {
+              platform: 'play',
+              id: 'com.aistudioapk.aibrow',
+              url: 'https://aistudioapk.com',
+            },
+          ],
           icons: [
             {
               src: '/pwa-192x192.png',

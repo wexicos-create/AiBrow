@@ -52,8 +52,10 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
 
   // 1. YouTube Dedicated Live View
   if (activeTab.url.includes('youtube.com') || activeTab.url.includes('youtu.be') || activeTab.title.toLowerCase().includes('youtube')) {
+    const videoQuery = activeTab.query || (activeTab.title.includes('-') ? activeTab.title.split('-')[1]?.trim() : '') || '';
     return (
       <YouTubeView 
+        initialQuery={videoQuery}
         onExecuteAgent={onExecuteAgent}
         onOpenExternal={handleOpenExternal}
       />

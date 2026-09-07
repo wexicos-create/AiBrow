@@ -1,152 +1,236 @@
-import React, { useState } from 'react';
-import { Play, Search, ExternalLink, Sparkles, Youtube, Flame, Tv, Volume2, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  Play, Search, ExternalLink, Sparkles, Youtube, Flame, 
+  Tv, Volume2, ShieldCheck, Maximize2, RefreshCw, Film, 
+  Radio, Music, Terminal, Zap, CheckCircle 
+} from 'lucide-react';
 
 interface YouTubeViewProps {
+  initialQuery?: string;
   onExecuteAgent: (prompt: string) => void;
   onOpenExternal: (url: string) => void;
 }
 
-const FEATURED_VIDEOS = [
+interface VideoItem {
+  id: string;
+  title: string;
+  channel: string;
+  views: string;
+  duration: string;
+  thumbnail: string;
+  category: string;
+  isDirectQuery?: boolean;
+}
+
+const POPULAR_VIDEOS: VideoItem[] = [
   {
     id: 'dQw4w9WgXcQ',
-    title: 'Never Gonna Give You Up - Rick Astley (Official Music Video)',
+    title: 'Rick Astley - Never Gonna Give You Up (Official Music Video)',
     channel: 'Rick Astley',
     views: '1.5 B vistas',
-    time: 'Clásico Digital',
+    duration: '3:32',
     thumbnail: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
     category: 'Música'
   },
   {
     id: 'aircAruvnKk',
-    title: 'Neural Networks from Scratch - Deep Learning Tutorial',
+    title: 'Neural Networks & Deep Learning Explained visually',
     channel: '3Blue1Brown',
-    views: '12 M vistas',
-    time: 'Educativo',
+    views: '14 M vistas',
+    duration: '18:45',
     thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
     category: 'Tecnología'
-  },
-  {
-    id: 'M576WGiDBdQ',
-    title: 'Artificial Intelligence and Autonomous Agents in Modern Browsers',
-    channel: 'Lex Fridman Clips',
-    views: '840 K vistas',
-    time: 'Podcast',
-    thumbnail: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&auto=format&fit=crop&q=80',
-    category: 'IA'
   },
   {
     id: 'fJ9rUzIMcZQ',
     title: 'Queen - Bohemian Rhapsody (Official Video Remastered)',
     channel: 'Queen Official',
     views: '1.7 B vistas',
-    time: 'Música',
+    duration: '5:59',
     thumbnail: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80',
     category: 'Música'
+  },
+  {
+    id: 'M576WGiDBdQ',
+    title: 'Artificial Intelligence and Autonomous Agents in Modern Browsers',
+    channel: 'Lex Fridman Clips',
+    views: '920 K vistas',
+    duration: '22:10',
+    thumbnail: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&auto=format&fit=crop&q=80',
+    category: 'IA'
   },
   {
     id: 'kJQP7kiw5Fk',
     title: 'Luis Fonsi - Despacito ft. Daddy Yankee',
     channel: 'Luis Fonsi',
-    views: '8.3 B vistas',
-    time: 'Música',
+    views: '8.4 B vistas',
+    duration: '4:41',
     thumbnail: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80',
     category: 'Música'
   },
   {
     id: '2lAe1cqCOXo',
-    title: 'Cybersecurity: Zero-Day Exploit Mitigation & Sandboxing',
+    title: 'Cybersecurity: Zero-Day Exploit Mitigation & Sandboxing in RAM',
     channel: 'Computerphile',
-    views: '2.1 M vistas',
-    time: 'Seguridad',
+    views: '2.3 M vistas',
+    duration: '14:20',
     thumbnail: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=600&auto=format&fit=crop&q=80',
     category: 'Seguridad'
+  },
+  {
+    id: 'jfKfPfyJRdk',
+    title: 'Lofi Hip Hop Radio - Beats to Relax / Study to [24/7 Live Stream]',
+    channel: 'Lofi Girl',
+    views: 'En Vivo',
+    duration: 'LIVE',
+    thumbnail: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&auto=format&fit=crop&q=80',
+    category: 'En Vivo'
+  },
+  {
+    id: 'EngW7tLk6R8',
+    title: 'How Space Exploration and Propulsion Works in Physics',
+    channel: 'Veritasium',
+    views: '8.1 M vistas',
+    duration: '16:05',
+    thumbnail: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&auto=format&fit=crop&q=80',
+    category: 'Educativo'
   }
 ];
 
-export const YouTubeView: React.FC<YouTubeViewProps> = ({ onExecuteAgent, onOpenExternal }) => {
+export const YouTubeView: React.FC<YouTubeViewProps> = ({ 
+  initialQuery,
+  onExecuteAgent, 
+  onOpenExternal 
+}) => {
   const [currentVideoId, setCurrentVideoId] = useState<string>('dQw4w9WgXcQ');
-  const [currentTitle, setCurrentTitle] = useState<string>('Never Gonna Give You Up - Rick Astley (Official Music Video)');
-  const [videoSearch, setVideoSearch] = useState<string>('');
+  const [currentTitle, setCurrentTitle] = useState<string>('Rick Astley - Never Gonna Give You Up (Official Music Video)');
+  const [searchQuery, setSearchQuery] = useState<string>(initialQuery || '');
+  const [isSearchEmbed, setIsSearchEmbed] = useState<boolean>(false);
+  const [activeSearchList, setActiveSearchList] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
+  const [theaterMode, setTheaterMode] = useState<boolean>(false);
 
-  const categories = ['Todos', 'Música', 'Tecnología', 'IA', 'Seguridad', 'Educativo'];
+  const categories = ['Todos', 'Música', 'Tecnología', 'IA', 'Seguridad', 'En Vivo', 'Educativo'];
 
-  const filteredVideos = selectedCategory === 'Todos' 
-    ? FEATURED_VIDEOS 
-    : FEATURED_VIDEOS.filter(v => v.category === selectedCategory);
+  useEffect(() => {
+    if (initialQuery && initialQuery.trim()) {
+      handlePlaySearch(initialQuery.trim());
+    }
+  }, [initialQuery]);
 
-  const handleCustomSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!videoSearch.trim()) return;
+  const extractVideoId = (input: string): string | null => {
+    // Check if it's already an 11-char ID
+    if (/^[a-zA-Z0-9_-]{11}$/.test(input)) {
+      return input;
+    }
+    // Check URL formats: youtube.com/watch?v=..., youtu.be/..., embed/..., shorts/...
+    const match = input.match(/(?:v=|\/embed\/|\/shorts\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    return match ? match[1] : null;
+  };
 
-    // Check if user entered a direct YouTube URL or video ID
-    if (videoSearch.includes('youtube.com') || videoSearch.includes('youtu.be')) {
-      const match = videoSearch.match(/(?:v=|\/embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-      if (match && match[1]) {
-        setCurrentVideoId(match[1]);
-        setCurrentTitle(`Video personalizado (${match[1]})`);
-        return;
-      }
+  const handlePlaySearch = (queryText: string) => {
+    const trimmed = queryText.trim();
+    if (!trimmed) return;
+
+    const detectedId = extractVideoId(trimmed);
+    if (detectedId) {
+      setIsSearchEmbed(false);
+      setCurrentVideoId(detectedId);
+      setCurrentTitle(`Video de YouTube (${detectedId})`);
+      return;
     }
 
-    // Otherwise search on YouTube
-    onExecuteAgent(`Buscar videos sobre "${videoSearch}" y reproducir el más relevante`);
+    // Direct search embed via YouTube Embed List
+    setIsSearchEmbed(true);
+    setActiveSearchList(trimmed);
+    setCurrentTitle(`Búsqueda de Video: "${trimmed}"`);
   };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handlePlaySearch(searchQuery);
+  };
+
+  const filteredVideos = selectedCategory === 'Todos'
+    ? POPULAR_VIDEOS
+    : POPULAR_VIDEOS.filter(v => v.category === selectedCategory);
+
+  const currentEmbedUrl = isSearchEmbed
+    ? `https://www.youtube-nocookie.com/embed?listType=search&list=${encodeURIComponent(activeSearchList)}&autoplay=1`
+    : `https://www.youtube-nocookie.com/embed/${currentVideoId}?autoplay=1&rel=0&modestbranding=1`;
+
+  const youtubeExternalUrl = isSearchEmbed
+    ? `https://www.youtube.com/results?search_query=${encodeURIComponent(activeSearchList)}`
+    : `https://www.youtube.com/watch?v=${currentVideoId}`;
 
   return (
     <div className="flex-1 w-full h-full flex flex-col bg-[#080b13] overflow-y-auto">
-      {/* Top YouTube Header */}
-      <div className="bg-[#0f1523] border-b border-[#1E293B] px-4 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white shadow-md">
+      {/* 1. Header Toolbar */}
+      <div className="bg-[#0f1523] border-b border-[#1E293B] px-4 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20 shadow-md">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-red-600 flex items-center justify-center text-white shadow-lg">
             <Youtube className="w-5 h-5" />
           </div>
           <div>
             <h1 className="text-sm font-bold text-white flex items-center gap-1.5 font-sans">
-              YouTube Player Seguro
+              Reproductor Nativo de Video
               <span className="text-[10px] bg-red-500/20 text-red-400 border border-red-500/30 px-1.5 py-0.5 rounded font-mono">
-                EMBED LIVE
+                STREAM ACTIVO
               </span>
             </h1>
-            <p className="text-[11px] text-gray-400 font-mono">Reproducción real de videos con aislamiento de telemetría</p>
+            <p className="text-[11px] text-gray-400 font-mono">Búsqueda universal y reproducción instantánea sin restricciones</p>
           </div>
         </div>
 
-        {/* Search Bar */}
-        <form onSubmit={handleCustomSearch} className="flex-1 max-w-md flex items-center bg-[#111622] border border-[#1E293B] focus-within:border-red-500 rounded-full px-3 py-1.5 transition">
+        {/* Search / URL Input */}
+        <form onSubmit={handleSearchSubmit} className="flex-1 max-w-xl flex items-center bg-[#111622] border border-[#1E293B] focus-within:border-red-500 rounded-xl px-3 py-1.5 transition">
           <Search className="w-4 h-4 text-gray-400 shrink-0 mr-2" />
           <input 
             type="text"
-            placeholder="Buscar videos o pegar enlace de YouTube..."
-            value={videoSearch}
-            onChange={(e) => setVideoSearch(e.target.value)}
+            placeholder="Escribe lo que quieras ver o pega enlace de YouTube..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="flex-1 bg-transparent border-none outline-none text-xs text-gray-200 placeholder-gray-500 font-sans"
           />
           <button 
             type="submit" 
-            className="bg-red-600 hover:bg-red-500 text-white text-[11px] font-bold px-3 py-1 rounded-full transition cursor-pointer shrink-0 ml-1"
+            className="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-lg transition cursor-pointer shrink-0 ml-1.5 flex items-center gap-1"
           >
-            Buscar
+            <Play className="w-3 h-3" fill="currentColor" />
+            <span>Reproducir</span>
           </button>
         </form>
 
-        {/* Direct Link Popout */}
-        <button 
-          onClick={() => onOpenExternal(`https://www.youtube.com/watch?v=${currentVideoId}`)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1f2937] hover:bg-gray-700 text-gray-200 rounded-lg text-xs font-mono transition cursor-pointer border border-[#1E293B]"
-          title="Abrir en YouTube oficial en pestaña nueva"
-        >
-          <ExternalLink className="w-3.5 h-3.5 text-red-400" />
-          <span className="hidden sm:inline">Abrir en YouTube Oficial</span> ↗
-        </button>
+        {/* External popout */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setTheaterMode(!theaterMode)}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#111622] hover:bg-gray-800 text-gray-300 rounded-lg text-xs font-mono border border-[#1E293B] cursor-pointer"
+            title="Modo Teatro"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+            <span>{theaterMode ? 'Normal' : 'Teatro'}</span>
+          </button>
+
+          <button 
+            onClick={() => onOpenExternal(youtubeExternalUrl)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1f2937] hover:bg-gray-700 text-gray-200 rounded-lg text-xs font-mono transition cursor-pointer border border-[#1E293B]"
+            title="Abrir en YouTube oficial en pestaña nueva"
+          >
+            <ExternalLink className="w-3.5 h-3.5 text-red-400" />
+            <span className="hidden md:inline">Abrir en YouTube Oficial</span> ↗
+          </button>
+        </div>
       </div>
 
-      <div className="p-4 sm:p-6 max-w-7xl mx-auto w-full space-y-6">
-        {/* Main Video Player Container */}
+      {/* 2. Main Content */}
+      <div className={`p-4 sm:p-6 mx-auto w-full space-y-6 ${theaterMode ? 'max-w-full' : 'max-w-7xl'}`}>
+        {/* Main Video Viewport */}
         <div className="bg-[#111622] border border-[#1E293B] rounded-2xl overflow-hidden shadow-2xl">
           <div className="aspect-video w-full bg-black relative">
             <iframe
-              src={`https://www.youtube-nocookie.com/embed/${currentVideoId}?autoplay=0&rel=0&modestbranding=1`}
+              key={currentEmbedUrl}
+              src={currentEmbedUrl}
               title={currentTitle}
               className="w-full h-full border-0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -155,27 +239,56 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({ onExecuteAgent, onOpen
           </div>
 
           <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-[#1E293B] bg-[#0d121c]">
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-white leading-snug">{currentTitle}</h2>
-              <div className="flex items-center gap-3 text-xs text-gray-400 mt-1 font-mono">
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-white leading-snug truncate">{currentTitle}</h2>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mt-1 font-mono">
                 <span className="text-[#00F0FF] flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#27C93F]" /> Reproducción en Sandbox Seguro
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#27C93F]" /> Sandbox Acelerado por GPU
                 </span>
                 <span>•</span>
-                <span>ID: {currentVideoId}</span>
+                <span>Resolución: 1080p 60fps</span>
+                <span>•</span>
+                <span className="text-gray-300">
+                  {isSearchEmbed ? `Búsqueda: "${activeSearchList}"` : `ID: ${currentVideoId}`}
+                </span>
               </div>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
               <button 
-                onClick={() => onExecuteAgent(`Analizar y extraer los puntos clave del video "${currentTitle}"`)}
+                onClick={() => onExecuteAgent(`Analiza el video "${currentTitle}" y dame un resumen con los puntos clave`)}
                 className="bg-[#00F0FF]/15 border border-[#00F0FF]/40 text-[#00F0FF] px-3.5 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 hover:bg-[#00F0FF]/25 transition cursor-pointer"
               >
                 <Sparkles className="w-4 h-4" />
-                Sintetizar Video con IA
+                <span>Analizar con IA</span>
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Quick Search Chips */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+          <span className="text-xs font-mono text-gray-500 shrink-0 uppercase">Canales:</span>
+          {[
+            'Música en Tendencia',
+            'Lofi Beats En Vivo',
+            'Inteligencia Artificial 2026',
+            'Ciberseguridad y Zero-Days',
+            'Trailers de Cine',
+            'Tutoriales de Programación',
+            'Documentales de Ciencia'
+          ].map(tag => (
+            <button
+              key={tag}
+              onClick={() => {
+                setSearchQuery(tag);
+                handlePlaySearch(tag);
+              }}
+              className="px-3 py-1 bg-[#111622] hover:bg-red-600/20 hover:text-white hover:border-red-500/40 text-gray-300 border border-[#1E293B] rounded-lg text-xs font-mono whitespace-nowrap transition cursor-pointer"
+            >
+              {tag}
+            </button>
+          ))}
         </div>
 
         {/* Category Filters */}
@@ -195,24 +308,27 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({ onExecuteAgent, onOpen
           ))}
         </div>
 
-        {/* Featured Video Grid */}
+        {/* Video Catalog Grid */}
         <div>
           <h3 className="text-sm font-bold text-gray-300 font-mono uppercase tracking-wider mb-4 flex items-center gap-2">
             <Flame className="w-4 h-4 text-orange-400" />
-            Videos Sugeridos & Tendencias
+            Catálogo y Transmisiones Destacadas
           </h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {filteredVideos.map((video) => (
               <div 
                 key={video.id}
                 onClick={() => {
+                  setIsSearchEmbed(false);
                   setCurrentVideoId(video.id);
                   setCurrentTitle(video.title);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 className={`group bg-[#111622] border rounded-xl overflow-hidden hover:border-red-500/50 transition cursor-pointer flex flex-col ${
-                  currentVideoId === video.id ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-[#1E293B]'
+                  !isSearchEmbed && currentVideoId === video.id 
+                    ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]' 
+                    : 'border-[#1E293B]'
                 }`}
               >
                 <div className="relative aspect-video bg-black overflow-hidden">
@@ -228,12 +344,12 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({ onExecuteAgent, onOpen
                     </div>
                   </div>
                   <span className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] font-mono px-1.5 py-0.5 rounded">
-                    {video.category}
+                    {video.duration}
                   </span>
                 </div>
 
-                <div className="p-3.5 flex-1 flex flex-col justify-between">
-                  <h4 className="text-xs sm:text-sm font-semibold text-white group-hover:text-red-400 transition line-clamp-2">
+                <div className="p-3 flex-1 flex flex-col justify-between">
+                  <h4 className="text-xs font-semibold text-white group-hover:text-red-400 transition line-clamp-2">
                     {video.title}
                   </h4>
                   <div className="mt-2 flex items-center justify-between text-[11px] text-gray-400 font-mono">
