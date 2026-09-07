@@ -1,0 +1,6 @@
+{
+  "name": "Aether Neural Browser",
+  "description": "Navegador web IA neural con agente autónomo LLaMA, navegación dom en tiempo real y arquitectura de privacidad airgap.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
