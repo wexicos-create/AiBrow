@@ -13,6 +13,7 @@ import { PWAInstallButton } from './PWAInstallButton';
 import { VirtualAgentPointer, CursorPosition } from './VirtualAgentPointer';
 import { AgentControlBar } from './AgentControlBar';
 import { ApkDownloadModal } from './ApkDownloadModal';
+import { GodModeOverlay } from './GodModeOverlay';
 import { generateDynamicAgentResponse } from '../services/agentEngine';
 
 export const AetherBrowser: React.FC = () => {
@@ -60,6 +61,7 @@ export const AetherBrowser: React.FC = () => {
   const [showPrivacyAudit, setShowPrivacyAudit] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showApkModal, setShowApkModal] = useState(false);
+  const [showGodModeModal, setShowGodModeModal] = useState(false);
   const [showDebugDropdown, setShowDebugDropdown] = useState<boolean>(false);
   const [ollamaOnline, setOllamaOnline] = useState(false);
   const [micActive, setMicActive] = useState(false);
@@ -565,13 +567,23 @@ export const AetherBrowser: React.FC = () => {
             </button>
 
             {showDebugDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-[#0e1422] border border-[#00F0FF]/50 rounded-xl shadow-2xl py-1.5 z-50 text-xs font-mono">
+              <div className="absolute right-0 mt-2 w-52 bg-[#0e1422] border border-[#00F0FF]/50 rounded-xl shadow-2xl py-1.5 z-50 text-xs font-mono">
+                <button
+                  onClick={() => {
+                    setShowDebugDropdown(false);
+                    setShowGodModeModal(true);
+                  }}
+                  className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-[#1a2338] text-yellow-400 font-bold transition cursor-pointer"
+                >
+                  <Zap className="w-3.5 h-3.5 fill-current" />
+                  <span>🚀 MODO DIOS OVERDRIVE</span>
+                </button>
                 <button
                   onClick={() => {
                     setShowDebugDropdown(false);
                     navigateTo('Escáner & Reparador de Código', 'aether://devtools/scanner', 'devtools');
                   }}
-                  className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-[#1a2338] text-emerald-400 transition cursor-pointer"
+                  className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-[#1a2338] text-emerald-400 transition cursor-pointer border-t border-[#1E293B]"
                 >
                   <Bug className="w-3.5 h-3.5" />
                   <span>Debug & Reparar Código</span>
@@ -1010,6 +1022,15 @@ export const AetherBrowser: React.FC = () => {
       <ApkDownloadModal 
         isOpen={showApkModal}
         onClose={() => setShowApkModal(false)}
+      />
+
+      {/* God Mode Overdrive Modal */}
+      <GodModeOverlay
+        isOpen={showGodModeModal}
+        onClose={() => setShowGodModeModal(false)}
+        selectedModel={selectedAiModel}
+        onSelectModel={setSelectedAiModel}
+        onNotify={showToast}
       />
 
     </div>
