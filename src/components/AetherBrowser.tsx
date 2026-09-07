@@ -3,13 +3,16 @@ import {
   Search, Mic, Camera, Zap, Shield, Code, ArrowLeft, ArrowRight, 
   RotateCw, X, Plus, Settings, Flame, Globe, Paperclip, Send, 
   Mail, Youtube, BookOpen, Newspaper, Lock, CheckCircle, Terminal, 
-  Cpu, HardDrive, RefreshCw, Bot, User, Layers, ExternalLink, Bug, Sparkles
+  Cpu, HardDrive, RefreshCw, Bot, User, Layers, ExternalLink, Bug, Sparkles, Eye, Smartphone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Tab, BrowserMode, AgentTask } from '../types';
 import { BrowserViewport } from './BrowserViewport';
 import { AutonomousAgentOverlay } from './AutonomousAgentOverlay';
 import { PWAInstallButton } from './PWAInstallButton';
+import { VirtualAgentPointer, CursorPosition } from './VirtualAgentPointer';
+import { AgentControlBar } from './AgentControlBar';
+import { ApkDownloadModal } from './ApkDownloadModal';
 import { generateDynamicAgentResponse } from '../services/agentEngine';
 
 export const AetherBrowser: React.FC = () => {
@@ -30,8 +33,19 @@ export const AetherBrowser: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [agentInput, setAgentInput] = useState<string>('');
 
-  // Agent State
+  // Agent & Virtual Pointer State
   const [agentTask, setAgentTask] = useState<AgentTask | null>(null);
+  const [isAgentPaused, setIsAgentPaused] = useState<boolean>(false);
+  const [visualPointerEnabled, setVisualPointerEnabled] = useState<boolean>(true);
+  const [cursor, setCursor] = useState<CursorPosition>({
+    x: 50,
+    y: 50,
+    visible: false,
+    action: 'idle',
+    label: ''
+  });
+  const agentTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const [showAgentChat, setShowAgentChat] = useState<boolean>(false);
   const [agentChatInitialText, setAgentChatInitialText] = useState<string | undefined>(undefined);
   const [agentLogs, setAgentLogs] = useState<Array<{ time: string; text: string; type: string }>>([
@@ -44,6 +58,7 @@ export const AetherBrowser: React.FC = () => {
   // Modals & Controls
   const [showPrivacyAudit, setShowPrivacyAudit] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showApkModal, setShowApkModal] = useState(false);
   const [ollamaOnline, setOllamaOnline] = useState(false);
   const [micActive, setMicActive] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
@@ -166,9 +181,12 @@ export const AetherBrowser: React.FC = () => {
     showToast(`Resultados listos para: "${queryText}"`);
   };
 
-  // Autonomous / Mixed Agent Task Execution & Free Chat Collaboration
+  // Autonomous / Mixed Agent Task Execution & Live Operator Cursor
   const executeAutonomousTask = (instruction: string) => {
     if (!instruction.trim()) return;
+
+    if (agentTimerRef.current) clearTimeout(agentTimerRef.current);
+    setIsAgentPaused(false);
 
     // Open collaborative free-chat overlay so user and AI can talk freely and execute together
     setAgentChatInitialText(instruction);
@@ -176,12 +194,17 @@ export const AetherBrowser: React.FC = () => {
 
     const plan = generateDynamicAgentResponse(instruction, activeTab.url);
 
+    const initialSteps = plan.steps.map((s, idx) => ({
+      ...s,
+      status: idx === 0 ? ('running' as const) : ('pending' as const)
+    }));
+
     const newTask: AgentTask = {
       id: `task-${Date.now()}`,
       instruction,
       status: 'running',
       currentStepIndex: 0,
-      steps: plan.steps.map(s => ({ ...s, status: s.stepNumber === 1 ? 'running' : 'pending' })),
+      steps: initialSteps,
       logs: []
     };
 
@@ -191,51 +214,158 @@ export const AetherBrowser: React.FC = () => {
     const now = new Date().toLocaleTimeString();
     setAgentLogs(prev => [
       ...prev,
-      { time: now, type: 'action', text: `[ASISTENTE IA INICIADO] > ${instruction}` }
+      { time: now, type: 'action', text: `[ASISTENTE IA EN ACCIÓN] > ${instruction}` }
     ]);
+
+    // Initial Cursor Waypoint
+    const step1 = plan.steps[0];
+    if (step1?.cursorTarget) {
+      setCursor({
+        x: step1.cursorTarget.x,
+        y: step1.cursorTarget.y,
+        visible: visualPointerEnabled,
+        action: step1.cursorTarget.action,
+        label: step1.cursorTarget.label,
+        targetBounds: step1.cursorTarget.targetBounds
+      });
+    }
 
     // Navigation trigger if requested
     if (plan.suggestedUrl && plan.suggestedTitle && plan.suggestedType) {
-      if (instruction.toLowerCase().includes('abrir') || instruction.toLowerCase().includes('ir a') || instruction.toLowerCase().includes('navegar') || instruction.toLowerCase().includes('ver') || instruction.toLowerCase().includes('youtube') || instruction.toLowerCase().includes('noticia') || instruction.toLowerCase().includes('cve') || instruction.toLowerCase().includes('wikipedia') || instruction.toLowerCase().includes('reparar') || instruction.toLowerCase().includes('scanner')) {
+      const lower = instruction.toLowerCase();
+      if (lower.includes('abrir') || lower.includes('ir a') || lower.includes('navegar') || lower.includes('ver') || lower.includes('youtube') || lower.includes('noticia') || lower.includes('cve') || lower.includes('wikipedia') || lower.includes('reparar') || lower.includes('scanner')) {
         navigateTo(plan.suggestedTitle, plan.suggestedUrl, plan.suggestedType);
       }
     }
 
-    // Step 1 -> 2
-    setTimeout(() => {
-      setAgentTask(prev => {
-        if (!prev) return null;
-        const updatedSteps = [...prev.steps];
-        if (updatedSteps[0]) updatedSteps[0].status = 'completed';
-        if (updatedSteps[1]) updatedSteps[1].status = 'running';
-        return { ...prev, currentStepIndex: 1, steps: updatedSteps };
-      });
-      setAgentLogs(prev => [
-        ...prev,
-        { time: new Date().toLocaleTimeString(), type: 'info', text: `Procesando: ${plan.steps[0]?.description || 'Buscando fuentes y resolviendo DOM'}` }
-      ]);
-    }, 700);
+    // Schedule step progression
+    scheduleStepProgression(newTask, plan, 1);
+  };
 
-    // Final completion
-    setTimeout(() => {
-      setAgentTask(prev => {
-        if (!prev) return null;
-        const updatedSteps = prev.steps.map(s => ({ ...s, status: 'completed' as const }));
-        return { 
-          ...prev, 
-          status: 'completed', 
-          currentStepIndex: updatedSteps.length - 1, 
-          steps: updatedSteps,
-          resultSummary: plan.resultSummary 
-        };
-      });
+  const scheduleStepProgression = (task: AgentTask, plan: ReturnType<typeof generateDynamicAgentResponse>, nextStepIdx: number) => {
+    if (agentTimerRef.current) clearTimeout(agentTimerRef.current);
 
-      setAgentLogs(prev => [
-        ...prev,
-        { time: new Date().toLocaleTimeString(), type: 'success', text: `Tarea completada con éxito. Respuesta disponible en pantalla.` }
-      ]);
-      setAgentResult(plan.resultSummary);
-    }, 1500);
+    agentTimerRef.current = setTimeout(() => {
+      if (nextStepIdx < plan.steps.length) {
+        const step = plan.steps[nextStepIdx];
+
+        // Move cursor to this step's target
+        if (step.cursorTarget) {
+          setCursor({
+            x: step.cursorTarget.x,
+            y: step.cursorTarget.y,
+            visible: visualPointerEnabled,
+            action: step.cursorTarget.action,
+            label: step.cursorTarget.label,
+            targetBounds: step.cursorTarget.targetBounds
+          });
+        }
+
+        setAgentTask(prev => {
+          if (!prev) return null;
+          const updatedSteps = prev.steps.map((s, i) => ({
+            ...s,
+            status: i < nextStepIdx ? ('completed' as const) : i === nextStepIdx ? ('running' as const) : ('pending' as const)
+          }));
+          return {
+            ...prev,
+            currentStepIndex: nextStepIdx,
+            steps: updatedSteps
+          };
+        });
+
+        setAgentLogs(prev => [
+          ...prev,
+          { time: new Date().toLocaleTimeString(), type: 'info', text: `[Paso ${nextStepIdx + 1}] ${step.description}` }
+        ]);
+
+        // Schedule next step
+        scheduleStepProgression(task, plan, nextStepIdx + 1);
+      } else {
+        // Complete
+        setAgentTask(prev => {
+          if (!prev) return null;
+          const updatedSteps = prev.steps.map(s => ({ ...s, status: 'completed' as const }));
+          return {
+            ...prev,
+            status: 'completed',
+            currentStepIndex: updatedSteps.length - 1,
+            steps: updatedSteps,
+            resultSummary: plan.resultSummary
+          };
+        });
+
+        setCursor(prev => ({
+          ...prev,
+          action: 'inspecting',
+          label: '✅ Tarea completada con éxito'
+        }));
+
+        setAgentLogs(prev => [
+          ...prev,
+          { time: new Date().toLocaleTimeString(), type: 'success', text: `Misión autónoma completada con éxito.` }
+        ]);
+        setAgentResult(plan.resultSummary);
+
+        // Hide cursor after a few seconds
+        setTimeout(() => {
+          setCursor(prev => ({ ...prev, visible: false }));
+        }, 4000);
+      }
+    }, 1300);
+  };
+
+  const handleTogglePause = () => {
+    if (isAgentPaused) {
+      setIsAgentPaused(false);
+      if (agentTask) {
+        const plan = generateDynamicAgentResponse(agentTask.instruction, activeTab.url);
+        scheduleStepProgression(agentTask, plan, agentTask.currentStepIndex + 1);
+      }
+      showToast('Agente reanudado');
+    } else {
+      setIsAgentPaused(true);
+      if (agentTimerRef.current) clearTimeout(agentTimerRef.current);
+      setCursor(prev => ({ ...prev, label: '⏸️ Agente en Pausa' }));
+      showToast('Agente en pausa');
+    }
+  };
+
+  const handleIntervene = (newInstruction: string) => {
+    showToast(`Rumbo corregido: "${newInstruction}"`);
+    executeAutonomousTask(newInstruction);
+  };
+
+  const handleNextStep = () => {
+    if (!agentTask) return;
+    const plan = generateDynamicAgentResponse(agentTask.instruction, activeTab.url);
+    const nextIdx = agentTask.currentStepIndex + 1;
+    if (nextIdx < agentTask.steps.length) {
+      if (agentTimerRef.current) clearTimeout(agentTimerRef.current);
+      scheduleStepProgression(agentTask, plan, nextIdx);
+    }
+  };
+
+  const handleStopAgent = () => {
+    if (agentTimerRef.current) clearTimeout(agentTimerRef.current);
+    setAgentTask(null);
+    setCursor(prev => ({ ...prev, visible: false }));
+    setIsAgentPaused(false);
+    showToast('Operación autónoma cancelada');
+  };
+
+  const handleTogglePointer = () => {
+    const next = !visualPointerEnabled;
+    setVisualPointerEnabled(next);
+    if (!next) {
+      setCursor(prev => ({ ...prev, visible: false }));
+      showToast('Puntero visual IA desactivado');
+    } else {
+      if (agentTask && agentTask.status === 'running') {
+        setCursor(prev => ({ ...prev, visible: true }));
+      }
+      showToast('Puntero visual IA activado');
+    }
   };
 
   // Bottom input submit
@@ -410,6 +540,17 @@ export const AetherBrowser: React.FC = () => {
 
           <button 
             type="button"
+            onClick={() => setShowApkModal(true)}
+            className="flex items-center gap-1.5 border border-[#00F0FF]/60 bg-[#00F0FF]/15 hover:bg-[#00F0FF]/25 px-2.5 py-1 rounded-full transition cursor-pointer text-[#00F0FF] text-[11px] font-mono shadow-[0_0_12px_rgba(0,240,255,0.25)] font-bold animate-pulse"
+            title="Descargar AiBrow.apk firmado y paquete ZIP de código fuente"
+          >
+             <Smartphone className="w-3.5 h-3.5 text-[#00F0FF]" />
+             <span className="hidden sm:inline">AiBrow.apk & ZIP</span>
+             <span className="sm:hidden">APK & ZIP</span>
+          </button>
+
+          <button 
+            type="button"
             onClick={() => navigateTo('Escáner & Reparador de Código', 'aether://devtools/scanner', 'devtools')}
             className="flex items-center gap-1.5 border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-1 rounded-full transition cursor-pointer text-emerald-400 text-[11px] font-mono shadow-[0_0_10px_rgba(16,185,129,0.15)]"
             title="Abrir Escáner y Reparador de Errores de Ejecución y Código"
@@ -562,20 +703,41 @@ export const AetherBrowser: React.FC = () => {
         </div>
       </div>
 
+      {/* 2.5. Live Autonomous Agent Control & Reasoning Bar */}
+      <AnimatePresence>
+        {agentTask && agentTask.status !== 'idle' && (
+          <AgentControlBar 
+            task={agentTask}
+            isPaused={isAgentPaused}
+            onTogglePause={handleTogglePause}
+            onIntervene={handleIntervene}
+            onNextStep={handleNextStep}
+            onStop={handleStopAgent}
+            visualPointerEnabled={visualPointerEnabled}
+            onTogglePointer={handleTogglePointer}
+          />
+        )}
+      </AnimatePresence>
+
       {/* 3. Main Browser Viewport (Scrollable container in flex flow) */}
-      <BrowserViewport 
-        activeTab={activeTab}
-        mode={browserMode}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        onSearch={handleSearch}
-        onNavigate={navigateTo}
-        agentTask={agentTask}
-        onExecuteAgent={executeAutonomousTask}
-        onOpenAudit={() => setShowPrivacyAudit(true)}
-        agentLogs={agentLogs}
-        agentResult={agentResult}
-      />
+      <div className="flex-1 overflow-hidden relative flex flex-col">
+        {/* Virtual Agent Robotic Pointer Overlay */}
+        <VirtualAgentPointer cursor={cursor} />
+
+        <BrowserViewport 
+          activeTab={activeTab}
+          mode={browserMode}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onSearch={handleSearch}
+          onNavigate={navigateTo}
+          agentTask={agentTask}
+          onExecuteAgent={executeAutonomousTask}
+          onOpenAudit={() => setShowPrivacyAudit(true)}
+          agentLogs={agentLogs}
+          agentResult={agentResult}
+        />
+      </div>
 
       {/* 4. Bottom Command Terminal Bar (in-flow, will NEVER cover content!) */}
       <footer className="border-t border-[#1E293B] bg-[#0b0f19] p-3 sm:p-4 flex flex-col gap-2.5 z-30 shrink-0">
@@ -822,6 +984,12 @@ export const AetherBrowser: React.FC = () => {
           />
         )}
       </AnimatePresence>
+
+      {/* APK & ZIP Download Modal */}
+      <ApkDownloadModal 
+        isOpen={showApkModal}
+        onClose={() => setShowApkModal(false)}
+      />
 
     </div>
   );

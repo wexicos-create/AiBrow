@@ -1,12 +1,7 @@
-import { Tab, AgentChatMessage } from '../types';
+import { Tab, AgentChatMessage, AgentStep } from '../types';
 
 export interface AgentExecutionPlan {
-  steps: Array<{
-    id: string;
-    stepNumber: number;
-    description: string;
-    actionType: 'navigate' | 'dom_click' | 'extract' | 'synthesize';
-  }>;
+  steps: Array<Omit<AgentStep, 'status'>>;
   resultSummary: string;
   suggestedUrl?: string;
   suggestedTitle?: string;
@@ -146,9 +141,47 @@ export function generateDynamicAgentResponse(prompt: string, currentUrl?: string
   if (cleanPrompt.includes('youtube') || cleanPrompt.includes('video') || cleanPrompt.includes('musica') || cleanPrompt.includes('cancion') || cleanPrompt.includes('ver')) {
     return {
       steps: [
-        { id: 's1', stepNumber: 1, description: `Buscando índice multimedia y canales de streaming para: "${prompt}"`, actionType: 'navigate' },
-        { id: 's2', stepNumber: 2, description: 'Resolviendo protocolo de reproducción Web y reproductor iframe', actionType: 'extract' },
-        { id: 's3', stepNumber: 3, description: 'Sintetizando enlaces directos y cargando vista en vivo', actionType: 'synthesize' }
+        { 
+          id: 's1', 
+          stepNumber: 1, 
+          description: `Apuntando a la barra multimedia para: "${prompt}"`, 
+          details: 'Moviendo el cursor al campo de búsqueda multimedia e ingresando los términos solicitados.',
+          actionType: 'navigate',
+          cursorTarget: {
+            x: 48,
+            y: 16,
+            action: 'typing',
+            label: `⌨️ Tecleando en YouTube: "${prompt.slice(0, 20)}"`,
+            targetBounds: { top: 12, left: 25, width: 50, height: 8 }
+          }
+        },
+        { 
+          id: 's2', 
+          stepNumber: 2, 
+          description: 'Haciendo clic en el reproductor y resolviendo stream seguro', 
+          details: 'Activando aceleración por hardware en RAM sin trackers publicitarios.',
+          actionType: 'dom_click',
+          cursorTarget: {
+            x: 50,
+            y: 45,
+            action: 'clicking',
+            label: '👆 Clic en Reproductor de Video',
+            targetBounds: { top: 25, left: 20, width: 60, height: 40 }
+          }
+        },
+        { 
+          id: 's3', 
+          stepNumber: 3, 
+          description: 'Sintetizando enlaces directos y cargando vista en vivo', 
+          details: 'Inspeccionando controles de reproducción y entregando el resultado al usuario.',
+          actionType: 'synthesize',
+          cursorTarget: {
+            x: 50,
+            y: 75,
+            action: 'inspecting',
+            label: '✨ Video Listo para Reproducir'
+          }
+        }
       ],
       resultSummary: `🎬 **Acceso a YouTube y Streaming:** Se ha configurado el reproductor web para "${prompt}". Puedes reproducir contenidos directamente o abrir YouTube oficial con aceleración de hardware.`,
       suggestedUrl: `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(prompt)}`,
@@ -163,9 +196,47 @@ export function generateDynamicAgentResponse(prompt: string, currentUrl?: string
     const topic = prompt.replace(/wikipedia|que es|quién es|historia de|concepto de/gi, '').trim() || 'Inteligencia artificial';
     return {
       steps: [
-        { id: 's1', stepNumber: 1, description: `Consultando base de conocimiento enciclopédica sobre: "${topic}"`, actionType: 'navigate' },
-        { id: 's2', stepNumber: 2, description: 'Extrayendo secciones clave, definiciones y referencias bibliográficas', actionType: 'extract' },
-        { id: 's3', stepNumber: 3, description: 'Generando resumen estructurado y navegación enciclopédica', actionType: 'synthesize' }
+        { 
+          id: 's1', 
+          stepNumber: 1, 
+          description: `Desplazando puntero al índice de Wikipedia: "${topic}"`, 
+          details: 'Localizando el artículo principal en español y preparando la lectura sin distracciones.',
+          actionType: 'navigate',
+          cursorTarget: {
+            x: 35,
+            y: 20,
+            action: 'moving',
+            label: `🔍 Localizando: "${topic}"`,
+            targetBounds: { top: 15, left: 15, width: 70, height: 10 }
+          }
+        },
+        { 
+          id: 's2', 
+          stepNumber: 2, 
+          description: 'Haciendo clic en la sección de definiciones y bibliografía', 
+          details: 'Extrayendo resúmenes enciclopédicos y enlaces de verificación cruzada.',
+          actionType: 'dom_click',
+          cursorTarget: {
+            x: 42,
+            y: 48,
+            action: 'clicking',
+            label: '👆 Extrayendo Secciones Clave',
+            targetBounds: { top: 30, left: 20, width: 60, height: 35 }
+          }
+        },
+        { 
+          id: 's3', 
+          stepNumber: 3, 
+          description: 'Generando resumen estructurado y navegación enciclopédica', 
+          details: 'Sintetizando la información en lenguaje natural claro y conciso.',
+          actionType: 'synthesize',
+          cursorTarget: {
+            x: 50,
+            y: 70,
+            action: 'inspecting',
+            label: '📖 Lectura Enciclopédica Lista'
+          }
+        }
       ],
       resultSummary: `📚 **Resumen Enciclopédico de "${topic}":**\n• Definición fundamental y contexto histórico analizados.\n• Se ha preparado el artículo completo con lectura sin distracciones.\n• Puedes abrir la enciclopedia en vivo o navegar por sus hipervínculos.`,
       suggestedUrl: `https://es.m.wikipedia.org/wiki/${encodeURIComponent(topic.replace(/\s+/g, '_'))}`,
@@ -179,9 +250,46 @@ export function generateDynamicAgentResponse(prompt: string, currentUrl?: string
   if (cleanPrompt.includes('zero') || cleanPrompt.includes('cve') || cleanPrompt.includes('vulnerab') || cleanPrompt.includes('hack') || cleanPrompt.includes('seguridad') || cleanPrompt.includes('airgap') || cleanPrompt.includes('dns')) {
     return {
       steps: [
-        { id: 's1', stepNumber: 1, description: 'Escaneando bases de datos de vulnerabilidades NIST NVD y CVE Mitre', actionType: 'navigate' },
-        { id: 's2', stepNumber: 2, description: 'Analizando vectores de ataque en memoria, WebGL y fugas DNS', actionType: 'extract' },
-        { id: 's3', stepNumber: 3, description: 'Generando reglas de mitigación Sandbox en tiempo real', actionType: 'synthesize' }
+        { 
+          id: 's1', 
+          stepNumber: 1, 
+          description: 'Apuntando al escudo de seguridad y base de datos CVE', 
+          details: 'Consultando registros NIST NVD y vectores de explotación recientes.',
+          actionType: 'navigate',
+          cursorTarget: {
+            x: 65,
+            y: 18,
+            action: 'moving',
+            label: '🛡️ Auditando Escudo de Seguridad'
+          }
+        },
+        { 
+          id: 's2', 
+          stepNumber: 2, 
+          description: 'Haciendo clic en la matriz de mitigación en Sandbox', 
+          details: 'Aislando sockets y bloqueando scripts no firmados en el túnel Airgap.',
+          actionType: 'dom_click',
+          cursorTarget: {
+            x: 50,
+            y: 52,
+            action: 'clicking',
+            label: '⚡ Aplicando Aislamiento de Memoria',
+            targetBounds: { top: 35, left: 20, width: 60, height: 35 }
+          }
+        },
+        { 
+          id: 's3', 
+          stepNumber: 3, 
+          description: 'Confirmando reglas Sandbox y reporte defensivo', 
+          details: 'Generando dictamen de seguridad perimetral.',
+          actionType: 'synthesize',
+          cursorTarget: {
+            x: 50,
+            y: 75,
+            action: 'inspecting',
+            label: '✅ Perímetro Blindado'
+          }
+        }
       ],
       resultSummary: `🛡️ **Reporte de Ciberseguridad & Vulnerabilidades:**\n• Se auditaron los vectores críticos de navegación Web.\n• Protocolo Airgap: Filtros de sandbox activos contra scripts no autorizados.\n• Túnel DNS cifrado listo para mitigar rastreos de huella digital.`,
       suggestedUrl: 'https://zerodays.network/vulns',
@@ -195,9 +303,46 @@ export function generateDynamicAgentResponse(prompt: string, currentUrl?: string
   if (cleanPrompt.includes('escanear error') || cleanPrompt.includes('reparar') || cleanPrompt.includes('bug') || cleanPrompt.includes('depurar') || cleanPrompt.includes('debug') || cleanPrompt.includes('optimiz') || cleanPrompt.includes('fuga de memoria') || cleanPrompt.includes('error de ejecucion') || cleanPrompt.includes('errores')) {
     return {
       steps: [
-        { id: 's1', stepNumber: 1, description: 'Iniciando AST Linter & Escáner de ejecución en tiempo real', actionType: 'navigate' },
-        { id: 's2', stepNumber: 2, description: 'Auditando árbol de sintaxis, variables sin scope, bucles infinitos y promesas rotas', actionType: 'extract' },
-        { id: 's3', stepNumber: 3, description: 'Aplicando correcciones automáticas y generando código optimizado', actionType: 'synthesize' }
+        { 
+          id: 's1', 
+          stepNumber: 1, 
+          description: 'Moviendo cursor al botón del Escáner y Reparador de Código', 
+          details: 'Accediendo al entorno de análisis estático AST y linter en tiempo real.',
+          actionType: 'navigate',
+          cursorTarget: {
+            x: 72,
+            y: 12,
+            action: 'moving',
+            label: '🛠️ Apuntando al Reparador de Código'
+          }
+        },
+        { 
+          id: 's2', 
+          stepNumber: 2, 
+          description: 'Haciendo clic en el botón de Auditoría AST y Linter', 
+          details: 'Inspeccionando scopes de variables, condiciones de carrera y fugas de memoria.',
+          actionType: 'dom_click',
+          cursorTarget: {
+            x: 50,
+            y: 42,
+            action: 'clicking',
+            label: '👆 Ejecutando Análisis AST',
+            targetBounds: { top: 25, left: 15, width: 70, height: 35 }
+          }
+        },
+        { 
+          id: 's3', 
+          stepNumber: 3, 
+          description: 'Generando parche corregido y optimizaciones de rendimiento', 
+          details: 'Calculando mejoras de tiempo de ejecución y preparando código listo para producción.',
+          actionType: 'synthesize',
+          cursorTarget: {
+            x: 50,
+            y: 72,
+            action: 'inspecting',
+            label: '✨ Código Reparado con Éxito'
+          }
+        }
       ],
       resultSummary: `🛠️ **Escáner y Reparador de Código IA Listo:**\n• Se auditó el runtime en busca de excepciones no controladas, fugas de memoria y layout thrashing.\n• Se abrió el **Escáner & Reparador de Código** donde puedes pegar cualquier script (JS, TS, Python, React, SQL) y repararlo en 1 clic.\n• Optimizaciones de rendimiento del navegador aplicadas con éxito.`,
       suggestedUrl: 'aether://devtools/scanner',
@@ -207,44 +352,50 @@ export function generateDynamicAgentResponse(prompt: string, currentUrl?: string
     };
   }
 
-  // 5. Programming, GitHub, Code, Development
-  if (cleanPrompt.includes('github') || cleanPrompt.includes('codigo') || cleanPrompt.includes('código') || cleanPrompt.includes('react') || cleanPrompt.includes('python') || cleanPrompt.includes('javascript') || cleanPrompt.includes('api')) {
-    return {
-      steps: [
-        { id: 's1', stepNumber: 1, description: `Inspeccionando repositorios y ecosistema de desarrollo para: "${prompt}"`, actionType: 'navigate' },
-        { id: 's2', stepNumber: 2, description: 'Parseando dependencias, estructura de código y buenas prácticas', actionType: 'extract' },
-        { id: 's3', stepNumber: 3, description: 'Sintetizando arquitectura técnica y ejemplos funcionales', actionType: 'synthesize' }
-      ],
-      resultSummary: `💻 **Análisis de Código y Desarrollo:**\n• Entorno TypeScript / Node.js verificado.\n• Se estructuraron recomendaciones de arquitectura modular y navegación sin bloqueos.\n• Acceso directo a repositorios y herramientas de depuración habilitado.`,
-      suggestedUrl: 'https://github.com',
-      suggestedTitle: 'GitHub Repositories',
-      suggestedType: 'github',
-      tags: ['Desarrollo', 'Código', 'GitHub']
-    };
-  }
-
-  // 5. News & Current Events
-  if (cleanPrompt.includes('noticia') || cleanPrompt.includes('news') || cleanPrompt.includes('actualidad') || cleanPrompt.includes('hoy')) {
-    return {
-      steps: [
-        { id: 's1', stepNumber: 1, description: 'Rastreando titulares de agencias internacionales y fuentes tecnológicas', actionType: 'navigate' },
-        { id: 's2', stepNumber: 2, description: 'Filtrando noticias verificadas y eliminando ruido publicitario', actionType: 'extract' },
-        { id: 's3', stepNumber: 3, description: 'Compilando resumen ejecutivo de actualidad', actionType: 'synthesize' }
-      ],
-      resultSummary: `📰 **Boletín de Actualidad & Noticias:**\n• Titulares recopilados de tecnología, ciencia y actualidad.\n• Información sintetizada con verificación de fuentes.\n• Disponible para lectura en vivo en el feed de noticias.`,
-      suggestedUrl: 'https://news.google.com',
-      suggestedTitle: 'Noticias en Vivo',
-      suggestedType: 'news',
-      tags: ['Noticias', 'Actualidad', 'Tecnología']
-    };
-  }
-
-  // 6. Generic / Custom intelligent response
+  // 5. Generic / Custom intelligent response with visual waypoints
   return {
     steps: [
-      { id: 's1', stepNumber: 1, description: `Analizando requerimiento y contexto web: "${prompt.slice(0, 45)}..."`, actionType: 'navigate' },
-      { id: 's2', stepNumber: 2, description: 'Buscando datos relevantes, extrayendo fuentes y validando información', actionType: 'extract' },
-      { id: 's3', stepNumber: 3, description: 'Generando respuesta clara, estructurada y acciones en el navegador', actionType: 'synthesize' }
+      { 
+        id: 's1', 
+        stepNumber: 1, 
+        description: `Moviendo puntero a la barra de búsqueda para: "${prompt.slice(0, 35)}"`, 
+        details: 'El agente localiza la barra de consulta web y escribe la instrucción.',
+        actionType: 'navigate',
+        cursorTarget: {
+          x: 48,
+          y: 14,
+          action: 'typing',
+          label: `⌨️ Escribiendo: "${prompt.slice(0, 22)}"`,
+          targetBounds: { top: 10, left: 20, width: 60, height: 8 }
+        }
+      },
+      { 
+        id: 's2', 
+        stepNumber: 2, 
+        description: 'Haciendo clic sobre las fuentes web principales', 
+        details: 'Extrayendo contenido relevante y descartando publicidad.',
+        actionType: 'dom_click',
+        cursorTarget: {
+          x: 38,
+          y: 45,
+          action: 'clicking',
+          label: '👆 Inspeccionando Resultados Web',
+          targetBounds: { top: 30, left: 15, width: 70, height: 30 }
+        }
+      },
+      { 
+        id: 's3', 
+        stepNumber: 3, 
+        description: 'Sintetizando respuesta clara y estructurada', 
+        details: 'Integrando hallazgos con el contexto del navegador para el usuario.',
+        actionType: 'synthesize',
+        cursorTarget: {
+          x: 50,
+          y: 70,
+          action: 'inspecting',
+          label: '✨ Síntesis y Acción Completadas'
+        }
+      }
     ],
     resultSummary: `✨ **Respuesta del Asistente:**\nPara tu solicitud **"${prompt}"**, el motor procesó los datos relevantes. Puedes navegar a los resultados en vivo, abrir la web en una pestaña externa o profundizar con más preguntas.`,
     suggestedUrl: `https://www.google.com/search?q=${encodeURIComponent(prompt)}`,

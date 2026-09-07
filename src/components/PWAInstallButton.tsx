@@ -16,10 +16,10 @@ export const PWAInstallButton: React.FC = () => {
     return (
       <button
         onClick={install}
-        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm text-zinc-200 hover:bg-zinc-800/50 transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm text-cyan-300 hover:bg-cyan-950/40 border border-cyan-900/40 transition-colors"
       >
-        <span>Install Aether</span>
-        <Download className="w-4 h-4 text-zinc-400" />
+        <span className="font-mono text-xs font-semibold">📲 Instalar App / APK Web</span>
+        <Download className="w-4 h-4 text-cyan-400" />
       </button>
     );
   }

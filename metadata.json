@@ -1,6 +1,6 @@
 {
-  "name": "Aether Neural Browser",
-  "description": "Navegador web IA neural con agente autónomo LLaMA, navegación dom en tiempo real y arquitectura de privacidad airgap.",
+  "name": "Aether Neural Browser - aistudioapk.com",
+  "description": "Versión web y PWA lista para empaquetar en APK con agente autónomo neural, puntero robótico en vivo y entorno dev en aistudioapk.com.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

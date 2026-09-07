@@ -36,6 +36,18 @@ export interface AgentStep {
   actionType: 'navigate' | 'dom_click' | 'extract' | 'synthesize';
   targetElement?: string;
   details?: string;
+  cursorTarget?: {
+    x: number;
+    y: number;
+    action: 'idle' | 'moving' | 'clicking' | 'inspecting' | 'typing';
+    label: string;
+    targetBounds?: {
+      top: number;
+      left: number;
+      width: number;
+      height: number;
+    };
+  };
 }
 
 export interface AgentTask {

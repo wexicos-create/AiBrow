@@ -1,0 +1,33 @@
+{
+  "id": "https://aistudioapk.com/",
+  "name": "AI Studio APK - Aether Neural Browser",
+  "short_name": "AIStudioAPK",
+  "description": "Versión web y PWA lista para empaquetar en APK con agente autónomo neural, puntero robótico en vivo y entorno dev en aistudioapk.com.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0a0a0a",
+  "background_color": "#0a0a0a",
+  "categories": ["utilities", "developer", "productivity"],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

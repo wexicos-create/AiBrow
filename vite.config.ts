@@ -13,15 +13,17 @@ export default defineConfig(() => {
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
         manifest: {
-          id: '/',
-          name: 'My PWA Application',
-          short_name: 'MyPWA',
-          description: 'A modern installable web application built with Vite and React.',
-          theme_color: '#ffffff',
-          background_color: '#ffffff',
+          id: 'https://aistudioapk.com/',
+          name: 'AI Studio APK - Aether Neural Browser',
+          short_name: 'AIStudioAPK',
+          description: 'Navegador web IA neural con agente autónomo, puntero en vivo y entorno de pruebas en aistudioapk.com.',
+          theme_color: '#0a0a0a',
+          background_color: '#0a0a0a',
           display: 'standalone',
+          orientation: 'any',
           start_url: '/',
           scope: '/',
+          categories: ['utilities', 'developer', 'productivity'],
           icons: [
             {
               src: '/pwa-192x192.png',
