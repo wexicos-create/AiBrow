@@ -3,13 +3,14 @@ import {
   Search, Mic, Camera, Zap, Shield, Code, ArrowLeft, ArrowRight, 
   RotateCw, X, Plus, Settings, Flame, Globe, Paperclip, Send, 
   Mail, Youtube, BookOpen, Newspaper, Lock, CheckCircle, Terminal, 
-  Cpu, HardDrive, RefreshCw, Bot, User, Layers
+  Cpu, HardDrive, RefreshCw, Bot, User, Layers, ExternalLink, Bug, Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Tab, BrowserMode, AgentTask } from '../types';
 import { BrowserViewport } from './BrowserViewport';
 import { AutonomousAgentOverlay } from './AutonomousAgentOverlay';
 import { PWAInstallButton } from './PWAInstallButton';
+import { generateDynamicAgentResponse } from '../services/agentEngine';
 
 export const AetherBrowser: React.FC = () => {
   // Navigation State
@@ -31,6 +32,8 @@ export const AetherBrowser: React.FC = () => {
 
   // Agent State
   const [agentTask, setAgentTask] = useState<AgentTask | null>(null);
+  const [showAgentChat, setShowAgentChat] = useState<boolean>(false);
+  const [agentChatInitialText, setAgentChatInitialText] = useState<string | undefined>(undefined);
   const [agentLogs, setAgentLogs] = useState<Array<{ time: string; text: string; type: string }>>([
     { time: '11:20:00', type: 'info', text: 'V-Drive montado: 1000GB asignados en sandbox seguro' },
     { time: '11:20:02', type: 'success', text: 'Túnel Airgap 256-bit validado sin fugas DNS' },
@@ -163,21 +166,22 @@ export const AetherBrowser: React.FC = () => {
     showToast(`Resultados listos para: "${queryText}"`);
   };
 
-  // Autonomous / Mixed Agent Task Execution
+  // Autonomous / Mixed Agent Task Execution & Free Chat Collaboration
   const executeAutonomousTask = (instruction: string) => {
     if (!instruction.trim()) return;
+
+    // Open collaborative free-chat overlay so user and AI can talk freely and execute together
+    setAgentChatInitialText(instruction);
+    setShowAgentChat(true);
+
+    const plan = generateDynamicAgentResponse(instruction, activeTab.url);
 
     const newTask: AgentTask = {
       id: `task-${Date.now()}`,
       instruction,
       status: 'running',
       currentStepIndex: 0,
-      steps: [
-        { id: 's1', stepNumber: 1, description: 'Inspeccionando DOM y enrutando túnel Airgap', status: 'running', actionType: 'navigate' },
-        { id: 's2', stepNumber: 2, description: 'Escaneando nodos semánticos y extrayendo datos', status: 'pending', actionType: 'extract' },
-        { id: 's3', stepNumber: 3, description: 'Ejecutando inferencia con LLaMA Uncensored', status: 'pending', actionType: 'synthesize' },
-        { id: 's4', stepNumber: 4, description: 'Generando síntesis final y acciones sugeridas', status: 'pending', actionType: 'synthesize' },
-      ],
+      steps: plan.steps.map(s => ({ ...s, status: s.stepNumber === 1 ? 'running' : 'pending' })),
       logs: []
     };
 
@@ -187,71 +191,51 @@ export const AetherBrowser: React.FC = () => {
     const now = new Date().toLocaleTimeString();
     setAgentLogs(prev => [
       ...prev,
-      { time: now, type: 'action', text: `[AGENTE INICIADO] > ${instruction}` }
+      { time: now, type: 'action', text: `[ASISTENTE IA INICIADO] > ${instruction}` }
     ]);
+
+    // Navigation trigger if requested
+    if (plan.suggestedUrl && plan.suggestedTitle && plan.suggestedType) {
+      if (instruction.toLowerCase().includes('abrir') || instruction.toLowerCase().includes('ir a') || instruction.toLowerCase().includes('navegar') || instruction.toLowerCase().includes('ver') || instruction.toLowerCase().includes('youtube') || instruction.toLowerCase().includes('noticia') || instruction.toLowerCase().includes('cve') || instruction.toLowerCase().includes('wikipedia') || instruction.toLowerCase().includes('reparar') || instruction.toLowerCase().includes('scanner')) {
+        navigateTo(plan.suggestedTitle, plan.suggestedUrl, plan.suggestedType);
+      }
+    }
 
     // Step 1 -> 2
     setTimeout(() => {
       setAgentTask(prev => {
         if (!prev) return null;
         const updatedSteps = [...prev.steps];
-        updatedSteps[0].status = 'completed';
-        updatedSteps[1].status = 'running';
+        if (updatedSteps[0]) updatedSteps[0].status = 'completed';
+        if (updatedSteps[1]) updatedSteps[1].status = 'running';
         return { ...prev, currentStepIndex: 1, steps: updatedSteps };
       });
       setAgentLogs(prev => [
         ...prev,
-        { time: new Date().toLocaleTimeString(), type: 'info', text: 'DOM analizado con éxito (0 trackers detectados, aislamiento 100%)' }
+        { time: new Date().toLocaleTimeString(), type: 'info', text: `Procesando: ${plan.steps[0]?.description || 'Buscando fuentes y resolviendo DOM'}` }
       ]);
-    }, 900);
+    }, 700);
 
-    // Step 2 -> 3
+    // Final completion
     setTimeout(() => {
-      // If task mentions zerodays, navigate there
-      if (instruction.toLowerCase().includes('zero') || instruction.toLowerCase().includes('cve') || instruction.toLowerCase().includes('vulnerab')) {
-        navigateTo('Zero-Days Hub', 'https://zerodays.network/vulns', 'zerodays');
-      } else if (instruction.toLowerCase().includes('github') || instruction.toLowerCase().includes('código')) {
-        navigateTo('GitHub', 'https://github.com', 'github');
-      } else if (instruction.toLowerCase().includes('noticia')) {
-        navigateTo('Noticias', 'https://news.google.com', 'news');
-      }
-
-      setAgentTask(prev => {
-        if (!prev) return null;
-        const updatedSteps = [...prev.steps];
-        updatedSteps[1].status = 'completed';
-        updatedSteps[2].status = 'running';
-        return { ...prev, currentStepIndex: 2, steps: updatedSteps };
-      });
-      setAgentLogs(prev => [
-        ...prev,
-        { time: new Date().toLocaleTimeString(), type: 'info', text: 'Inferencia LLaMA en ejecución sobre el árbol de contexto...' }
-      ]);
-    }, 1800);
-
-    // Step 3 -> 4 Complete
-    setTimeout(() => {
-      const completionText = `Tarea completada por el Agente Autónomo para: "${instruction}". Se extrajeron los parámetros clave de la página actual, verificando integridad criptográfica y generando reporte en memoria V-Drive.`;
-      
       setAgentTask(prev => {
         if (!prev) return null;
         const updatedSteps = prev.steps.map(s => ({ ...s, status: 'completed' as const }));
         return { 
           ...prev, 
           status: 'completed', 
-          currentStepIndex: 3, 
+          currentStepIndex: updatedSteps.length - 1, 
           steps: updatedSteps,
-          resultSummary: completionText 
+          resultSummary: plan.resultSummary 
         };
       });
 
       setAgentLogs(prev => [
         ...prev,
-        { time: new Date().toLocaleTimeString(), type: 'success', text: 'Síntesis completada. Respuestas almacenadas en V-Drive.' }
+        { time: new Date().toLocaleTimeString(), type: 'success', text: `Tarea completada con éxito. Respuesta disponible en pantalla.` }
       ]);
-      setAgentResult(completionText);
-      showToast('¡Agente Autónomo finalizó la tarea!');
-    }, 2800);
+      setAgentResult(plan.resultSummary);
+    }, 1500);
   };
 
   // Bottom input submit
@@ -371,6 +355,8 @@ export const AetherBrowser: React.FC = () => {
                 
                 {tab.type === 'zerodays' ? (
                   <Zap className="w-3.5 h-3.5 text-yellow-500 shrink-0" fill="currentColor" />
+                ) : tab.type === 'devtools' ? (
+                  <Bug className="w-3.5 h-3.5 text-[#00F0FF] shrink-0" />
                 ) : tab.type === 'github' ? (
                   <Code className="w-3.5 h-3.5 text-white shrink-0" />
                 ) : (
@@ -404,6 +390,35 @@ export const AetherBrowser: React.FC = () => {
 
         {/* Status Pills */}
         <div className="ml-auto flex items-center gap-2 shrink-0">
+          <button 
+            type="button"
+            onClick={() => {
+              setShowAgentChat(!showAgentChat);
+              showToast(showAgentChat ? 'Plática con agente minimizada' : 'Plática libre con Agente IA abierta');
+            }}
+            className={`flex items-center gap-1.5 border px-2.5 py-1 rounded-full transition cursor-pointer text-[11px] font-mono shadow-[0_0_10px_rgba(0,240,255,0.2)] ${
+              showAgentChat
+                ? 'border-[#00F0FF] bg-[#00F0FF]/25 text-[#00F0FF] font-bold'
+                : 'border-[#00F0FF]/50 bg-[#00F0FF]/10 text-[#00F0FF] hover:bg-[#00F0FF]/20'
+            }`}
+            title="Abrir Plática Libre y Colaboración con el Agente"
+          >
+             <Bot className="w-3.5 h-3.5 text-[#00F0FF]" />
+             <span className="hidden sm:inline">PLÁTICA LIBRE IA</span>
+             <span className="sm:hidden">CHAT IA</span>
+          </button>
+
+          <button 
+            type="button"
+            onClick={() => navigateTo('Escáner & Reparador de Código', 'aether://devtools/scanner', 'devtools')}
+            className="flex items-center gap-1.5 border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-1 rounded-full transition cursor-pointer text-emerald-400 text-[11px] font-mono shadow-[0_0_10px_rgba(16,185,129,0.15)]"
+            title="Abrir Escáner y Reparador de Errores de Ejecución y Código"
+          >
+             <Bug className="w-3 h-3 text-emerald-400" />
+             <span className="hidden sm:inline">REPARAR CÓDIGO</span>
+             <span className="sm:hidden">DEBUG</span>
+          </button>
+
           <button 
             onClick={() => {
               setOllamaOnline(!ollamaOnline);
@@ -476,12 +491,21 @@ export const AetherBrowser: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+             <button 
+               type="button"
+               onClick={() => window.open(activeTab.url, '_blank', 'noopener,noreferrer')}
+               className="hidden xs:flex items-center gap-1 bg-[#00F0FF]/15 hover:bg-[#00F0FF]/30 border border-[#00F0FF]/40 text-[#00F0FF] px-2 py-0.5 rounded text-[10px] font-mono transition cursor-pointer"
+               title="Abrir web actual en pestaña externa"
+             >
+               <ExternalLink className="w-2.5 h-2.5" />
+               <span>Abrir Web ↗</span>
+             </button>
              <div 
-               onClick={() => showToast('DOM en tiempo real sincronizado con el agente')}
+               onClick={() => showToast('DOM en tiempo real sincronizado')}
                className="hidden sm:flex items-center gap-1 border border-[#00F0FF]/30 bg-[#00F0FF]/10 px-1.5 py-0.5 rounded text-[9px] text-[#00F0FF] font-mono tracking-wider cursor-pointer"
              >
                <div className="w-1.5 h-1.5 rounded-full bg-[#00F0FF] animate-pulse"></div>
-               REAL-TIME DOM
+               DOM VIVO
              </div>
              <Shield 
                onClick={() => setShowPrivacyAudit(true)}
@@ -782,6 +806,20 @@ export const AetherBrowser: React.FC = () => {
               </button>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Autonomous Agent Free-Chat Overlay */}
+      <AnimatePresence>
+        {showAgentChat && (
+          <AutonomousAgentOverlay 
+            isOpen={showAgentChat}
+            onClose={() => setShowAgentChat(false)}
+            activeTab={activeTab}
+            onNavigate={navigateTo}
+            onOpenAudit={() => setShowPrivacyAudit(true)}
+            initialInstruction={agentChatInitialText}
+          />
         )}
       </AnimatePresence>
 
