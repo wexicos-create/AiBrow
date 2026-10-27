@@ -1,0 +1,18 @@
+{
+  "name": "aibrow",
+  "version": "1.0.0",
+  "description": "Núcleo ARBITER: arquitectura de cognición híbrida que combina la eficiencia de máquina, la adaptabilidad humana y un gobernador de control con soberanía humana.",
+  "author": {
+    "name": "josue Alvarado"
+  },
+  "homepage": "https://github.com/wexicos-create/AiBrow",
+  "repository": "https://github.com/wexicos-create/AiBrow",
+  "license": "MIT",
+  "keywords": [
+    "cognición híbrida",
+    "toma de decisiones",
+    "gobernanza",
+    "ejecución",
+    "ARBITER"
+  ]
+}
